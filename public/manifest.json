@@ -1,0 +1,17 @@
+{
+  "name": "Zen-Pop | 힐링 영단어 게임",
+  "short_name": "Zen-Pop",
+  "description": "초등학생을 위한 힐링 애니메이션 팝 영단어 학습 RPG",
+  "start_url": "/lobby",
+  "display": "standalone",
+  "background_color": "#F1FAFF",
+  "theme_color": "#6366F1",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
