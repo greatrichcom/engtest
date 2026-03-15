@@ -25,6 +25,7 @@ export default function ScanPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [bookTitle, setBookTitle] = useState(`스캔 단어장 ${new Date().toLocaleDateString("ko-KR")}`);
+  const [unitTitle, setUnitTitle] = useState("Unit 1");
 
   const { mutate: createBook } = useCreateBookFromScan();
 
@@ -153,7 +154,7 @@ export default function ScanPage() {
 
     setIsSaving(true);
     createBook(
-      { bookTitle, unitTitle: "Unit 1", words: scanResult },
+      { bookTitle, unitTitle, words: scanResult },
       {
         onSuccess: () => {
           setIsSaving(false);
@@ -323,15 +324,27 @@ export default function ScanPage() {
                     </span>
                   </div>
 
-                  {/* Book Title Input */}
-                  <div className="px-6 pb-3 shrink-0">
-                    <input
-                      type="text"
-                      value={bookTitle}
-                      onChange={(e) => setBookTitle(e.target.value)}
-                      placeholder="단어장 이름을 입력하세요"
-                      className="w-full px-4 py-2.5 border-2 border-zen-lavender rounded-2xl text-sm font-medium text-gray-700 focus:outline-none focus:border-zen-purple transition-colors"
-                    />
+                  <div className="px-6 pb-3 shrink-0 flex gap-2">
+                    <div className="flex-[2]">
+                      <label className="text-[10px] font-bold text-gray-400 ml-1 mb-1 block uppercase tracking-wider">단어장 제목</label>
+                      <input
+                        type="text"
+                        value={bookTitle}
+                        onChange={(e) => setBookTitle(e.target.value)}
+                        placeholder="단어장 이름을 입력하세요"
+                        className="w-full px-4 py-2.5 border-2 border-zen-lavender rounded-2xl text-sm font-medium text-gray-700 focus:outline-none focus:border-zen-purple transition-colors"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] font-bold text-gray-400 ml-1 mb-1 block uppercase tracking-wider">유닛</label>
+                      <input
+                        type="text"
+                        value={unitTitle}
+                        onChange={(e) => setUnitTitle(e.target.value)}
+                        placeholder="Unit 1"
+                        className="w-full px-4 py-2.5 border-2 border-zen-lavender rounded-2xl text-sm font-medium text-gray-700 focus:outline-none focus:border-zen-purple transition-colors text-center"
+                      />
+                    </div>
                   </div>
 
                   {/* Words List */}
