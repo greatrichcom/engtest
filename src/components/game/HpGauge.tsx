@@ -10,15 +10,17 @@ export function HpGauge({ currentHp, maxHp, className }: HpGaugeProps) {
   const percentage = maxHp > 0 ? Math.max(0, Math.min(100, (currentHp / maxHp) * 100)) : 0;
   
   return (
-    <div className={cn("w-full max-w-[280px] flex flex-col items-center gap-1", className)}>
-      <div className="w-full h-6 bg-gray-100 border-2 border-white rounded-full overflow-hidden shadow-inner relative">
-        <div 
-          className="h-full bg-zen-pink transition-all duration-300 ease-out shadow-[0_0_10px_rgba(255,107,157,0.5)]"
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-      <div className="text-sm font-bold text-zen-pink-dark">
-        HP {currentHp} / {maxHp}
+    <div className={cn("flex flex-col items-start gap-0.5", className)}>
+      <div className="flex items-center gap-2 w-full">
+        <div className="w-32 h-4 bg-gray-100 border border-white rounded-full overflow-hidden shadow-inner relative shrink-0">
+          <div 
+            className="h-full bg-zen-pink transition-all duration-300 ease-out shadow-[0_0_8px_rgba(255,107,157,0.4)]"
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+        <div className="text-[10px] font-black text-zen-pink-dark whitespace-nowrap">
+          HP {currentHp} / {maxHp}
+        </div>
       </div>
     </div>
 

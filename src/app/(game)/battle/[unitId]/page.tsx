@@ -6,9 +6,9 @@ import { useGameStore } from "@/stores/useGameStore";
 import { Monster } from "@/components/game/Monster";
 import { SpellPuzzle } from "@/components/game/SpellPuzzle";
 import { WordMatch } from "@/components/game/WordMatch";
-import { WordImage } from "@/components/game/WordImage";
 import { BattleIntro } from "@/components/game/BattleIntro";
 import { useWords, useUnit } from "@/hooks/useGameData";
+import { HpGauge } from "@/components/game/HpGauge";
 
 export default function BattlePage() {
   const params = useParams();
@@ -18,12 +18,12 @@ export default function BattlePage() {
   const { data: unitData } = useUnit(unitIdPath);
   const [showIntro, setShowIntro] = useState(true);
 
-  const { 
-    words, 
-    currentIndex, 
-    monsterHp, 
-    maxHp, 
-    initGame, 
+  const {
+    words,
+    currentIndex,
+    monsterHp,
+    maxHp,
+    initGame,
     submitAnswer,
     submitMatchResult,
     gameType,
@@ -31,40 +31,26 @@ export default function BattlePage() {
   } = useGameStore();
 
   const [isHit, setIsHit] = useState(false);
-  const [selectedMonster, setSelectedMonster] = useState<string>("");
+  const [selectedMonster, setSelectedMonster] = useState<{ image: string; name: string } | null>(null);
 
-  // 몬스터 이미지 매핑 (Dex와 동일)
-  const MONSTER_IMAGES: Record<string, string> = {
-    slime: "/images/monsters/media__1773510028776.jpg",
-    default: "/images/monsters/media__1773510028789.jpg",
-    dragon: "/images/monsters/media__1773510028838.jpg",
-    ghost: "/images/monsters/media__1773510028844.jpg",
-    robot: "/images/monsters/media__1773510160804.jpg",
-  };
-
-  const monsterImageArray = Object.values(MONSTER_IMAGES);
-
-  // DB에서 데이터 로드되면 스토어에 세팅 및 몬스터 이미지 선택
   useEffect(() => {
-    if (!selectedMonster && unitData) {
-      const mType = unitData.monster_type || "default";
-      const mappedImg = MONSTER_IMAGES[mType] || monsterImageArray[Math.floor(Math.random() * monsterImageArray.length)];
-      setSelectedMonster(mappedImg);
-    } else if (!selectedMonster && !unitData) {
-      // unitData가 없을 때의 폴백 (랜덤)
-      setSelectedMonster(monsterImageArray[0]);
-    }
+    import("@/lib/monsterRegistry").then(({ MONSTER_REGISTRY }) => {
+      if (!selectedMonster && unitIdPath) {
+        const seed = unitIdPath.split("-").reduce((acc, part) => acc + parseInt(part, 16), 0);
+        const monsterIndex = seed % MONSTER_REGISTRY.length;
+        const monster = MONSTER_REGISTRY[monsterIndex];
+        setSelectedMonster({ image: monster.image, name: monster.name });
+      }
+    });
 
     if (!isRevenge && dbWords && dbWords.length > 0) {
-      // 모든 단어 사용 (테스트 제한 제거)
       initGame(unitIdPath, dbWords, gameType || "spell");
     }
   }, [dbWords, unitData, unitIdPath, initGame, isRevenge, gameType, selectedMonster]);
 
   const currentWord = words[currentIndex];
-  // 매칭용 단어 번들 (현재 위치부터 최대 5개)
   const matchGroup = words.slice(currentIndex, currentIndex + 5);
-  
+
   const isMonsterDead = monsterHp <= 0 && maxHp > 0;
   const isGameFinished = maxHp > 0 && currentIndex >= maxHp;
 
@@ -95,9 +81,7 @@ export default function BattlePage() {
     }
   };
 
-  const handleMatchWrong = () => {
-    // 몬스터 데미지 입는 애니메이션 등은 생략하고 상점 알림만 함
-  };
+  const handleMatchWrong = () => { };
 
   if (!dbWords) {
     return (
@@ -110,38 +94,41 @@ export default function BattlePage() {
   if (!currentWord && !isGameFinished) return null;
 
   return (
-    <div className="flex flex-col h-full w-full justify-between pb-4 pt-4">
+    <div className="flex flex-col h-full w-full justify-between pb-4 pt-2 gap-2 overflow-hidden bg-white/50">
       {showIntro && <BattleIntro stageTitle="동물 친구들 모험" onComplete={() => setShowIntro(false)} />}
-      
-      {/* 상단 몬스터 및 진행도 영역 */}
-      <section className="flex-1 flex flex-col items-center justify-center relative">
-        <div className="absolute top-2 right-4 z-20">
-          {!isGameFinished && (
-            <div className="bg-white px-3 py-1 rounded-full shadow-soft text-sm font-bold text-text-secondary border-2 border-zen-lavender-dark">
-              {Math.min(currentIndex + (gameType === "match" ? matchGroup.length : 1), maxHp)} / {maxHp} 번째
-            </div>
-          )}
-        </div>
 
-        <Monster 
-          currentHp={monsterHp} 
-          maxHp={maxHp} 
-          hintEmoji={currentWord?.hintEmoji} 
-          isHit={isHit} 
-          imageUrl={selectedMonster}
+      {/* 상단 통합 헤더: HP 게이지 + 진행도 */}
+      <section className="px-4 py-1 flex items-center justify-between z-20 w-full shrink-0">
+        <HpGauge currentHp={monsterHp} maxHp={maxHp} className="shrink-0" />
+
+        {!isGameFinished && (
+          <div className="bg-white px-3 py-1 rounded-full shadow-soft text-[10px] font-black text-text-secondary border-2 border-zen-lavender-dark">
+            {Math.min(currentIndex + (gameType === "match" ? matchGroup.length : 1), maxHp)} / {maxHp} 번째
+          </div>
+        )}
+      </section>
+
+      {/* 몬스터 영역 (상단 여백을 줄이기 위해 살짝 올림) */}
+      <section className="flex-1 flex flex-col items-center justify-center relative min-h-0 -mt-10">
+        <Monster
+          currentHp={monsterHp}
+          maxHp={maxHp}
+          hintEmoji={currentWord?.hintEmoji}
+          isHit={isHit}
+          imageUrl={selectedMonster?.image}
         />
       </section>
 
-      {/* 하단 인터랙티브 사용자 액션 영역 */}
-      <div className="flex flex-col gap-1">
-        <section className="bg-white mx-4 rounded-3xl border-4 border-zen-mint p-2 shadow-card z-10 min-h-[220px] flex flex-col justify-center">
+      {/* 하단 인터랙티브 사용자 액션 영역 (여백을 줄이기 위해 위로 올림) */}
+      <div className="flex flex-col gap-2 px-4 pb-2 shrink-0 -mt-10">
+        <section className="bg-white rounded-3xl border-4 border-zen-mint p-3 shadow-card z-10 min-h-[200px] flex flex-col justify-center ">
           {!isGameFinished && gameType === "spell" && (
             <>
-              <div className="text-center font-heading text-base text-text-primary mb-0.5">
+              <div className="text-center font-heading text-base text-text-primary mb-1">
                 {currentWord?.korean}
               </div>
-              <SpellPuzzle 
-                english={currentWord.english} 
+              <SpellPuzzle
+                english={currentWord.english}
                 onCorrect={handleCorrect}
                 onWrong={handleWrong}
               />
@@ -150,11 +137,11 @@ export default function BattlePage() {
 
           {!isGameFinished && gameType === "match" && (
             <>
-              <div className="text-center font-heading text-base text-zen-purple-dark mb-0.5">
+              <div className="text-center font-heading text-base text-zen-purple-dark mb-1">
                 뜻 매칭 (Connect Words)
               </div>
-              <WordMatch 
-                words={matchGroup} 
+              <WordMatch
+                words={matchGroup}
                 onComplete={handleMatchComplete}
                 onWrong={handleMatchWrong}
               />
@@ -169,8 +156,8 @@ export default function BattlePage() {
         </section>
 
         {/* 하단 로비 버튼 */}
-        <div className="px-4 pb-0.5">
-          <button 
+        <div className="mt-1">
+          <button
             onClick={() => router.push("/lobby")}
             className="w-full py-2 bg-white border-2 border-zen-lavender-dark rounded-full text-zen-purple-dark font-bold shadow-soft hover:bg-zen-lavender-light active:scale-95 transition-all flex items-center justify-center gap-2 text-xs"
           >

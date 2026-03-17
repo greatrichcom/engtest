@@ -148,7 +148,7 @@ export function WordMatch({ words, onComplete, onWrong }: WordMatchProps) {
       ref={containerRef} 
       onPointerMove={handlePointerMove}
       onClick={handleBgClick}
-      className="relative w-full flex justify-center gap-10 py-2 select-none min-h-[250px] touch-none"
+      className="relative w-full flex justify-center gap-24 py-2 select-none min-h-[250px] touch-none"
     >
       {/* 선을 그릴 SVG 레이어 */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible">

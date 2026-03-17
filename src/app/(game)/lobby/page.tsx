@@ -14,13 +14,13 @@ export default function LobbyPage() {
   const { data: books, isLoading: isBooksLoading } = useBooks();
   const { setGameType } = useGameStore();
   const { mutate: checkAttendance } = useCheckAttendance();
-  
+
   // 로비 진입 시 자동 출석 체크
   useEffect(() => {
     checkAttendance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  
+
   // 상태 관리: 선택된 책 ID (지도를 보여주기 위함) 및 선택된 유닛 ID (모달용)
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
@@ -37,21 +37,21 @@ export default function LobbyPage() {
   const selectedBook = books?.find(b => b.id === selectedBookId);
 
   return (
-    <main className="flex-1 flex flex-col p-4 w-full h-full relative overflow-hidden">
-      
+    <main className="flex-1 flex flex-col px-4 py-2 w-full h-full relative overflow-hidden">
+
       {/* 상단 타이틀 및 네비게이션 */}
-      <section className="mb-4 mt-4 flex items-center justify-between gap-2 z-20">
+      <section className="mb-2 mt-1 flex items-center justify-between gap-2 z-20">
         <div className="flex-1">
           <AnimatePresence mode="wait">
             {selectedBookId ? (
-              <motion.div 
+              <motion.div
                 key="map-title"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 className="flex items-center gap-2"
               >
-                <button 
+                <button
                   onClick={() => setSelectedBookId(null)}
                   className="p-2 border-2 border-zen-lavender rounded-xl bg-white text-zen-purple shadow-soft hover:bg-zen-lavender-light transition-colors"
                 >
@@ -75,22 +75,15 @@ export default function LobbyPage() {
             )}
           </AnimatePresence>
         </div>
-        
+
         {!selectedBookId && (
-          <div className="flex flex-col gap-2 shrink-0">
-            <button 
+          <div className="flex shrink-0">
+            <button
               onClick={() => router.push("/library")}
-              className="flex items-center justify-center px-3 py-2 rounded-xl bg-white border-2 border-zen-lavender shadow-soft text-zen-purple font-bold text-xs hover:translate-y-0.5 transition-all"
+              className="flex items-center justify-center px-4 py-2 rounded-xl bg-white border-2 border-zen-lavender shadow-soft text-zen-purple font-bold text-xs hover:translate-y-0.5 transition-all"
             >
               <LibraryBig className="w-4 h-4 mr-1" />
               단어장
-            </button>
-            <button 
-              onClick={() => router.push("/dex")}
-              className="flex items-center justify-center px-3 py-2 rounded-xl bg-white border-2 border-zen-purple-light shadow-soft text-zen-purple-dark font-bold text-xs hover:translate-y-0.5 transition-all"
-            >
-              <Ghost className="w-4 h-4 mr-1 text-zen-purple" />
-              도감
             </button>
           </div>
         )}
@@ -100,12 +93,12 @@ export default function LobbyPage() {
       <div className="flex-1 flex flex-col relative overflow-hidden">
         <AnimatePresence mode="wait">
           {!selectedBookId ? (
-            <motion.section 
+            <motion.section
               key="book-list"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="flex-1 flex flex-col gap-4 overflow-y-auto pb-32 scrollbar-hide pt-2"
+              className="flex-1 flex flex-col gap-3 overflow-y-auto pb-32 scrollbar-hide pt-0"
             >
               {isBooksLoading ? (
                 <div className="flex-1 flex items-center justify-center font-bold text-zen-lavender-dark animate-pulse">
@@ -113,10 +106,10 @@ export default function LobbyPage() {
                 </div>
               ) : (
                 books?.map((book) => (
-                  <BookCard 
-                    key={book.id} 
-                    book={book} 
-                    onClick={() => setSelectedBookId(book.id)} 
+                  <BookCard
+                    key={book.id}
+                    book={book}
+                    onClick={() => setSelectedBookId(book.id)}
                   />
                 ))
               )}
@@ -134,9 +127,9 @@ export default function LobbyPage() {
                   스테이지 지도를 그리는 중...
                 </div>
               ) : (
-                <AdventureMap 
-                  units={units || []} 
-                  onUnitClick={(unitId) => setSelectedUnitId(unitId)} 
+                <AdventureMap
+                  units={units || []}
+                  onUnitClick={(unitId) => setSelectedUnitId(unitId)}
                 />
               )}
             </motion.section>
@@ -148,13 +141,13 @@ export default function LobbyPage() {
       <AnimatePresence>
         {selectedUnitId && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.5, opacity: 0 }}
               className="bg-white rounded-[2.5rem] w-full max-w-xs p-6 shadow-pop border-4 border-zen-purple relative"
             >
-              <button 
+              <button
                 onClick={() => setSelectedUnitId(null)}
                 className="absolute -top-3 -right-3 w-10 h-10 bg-white rounded-full border-4 border-zen-purple flex items-center justify-center text-zen-purple shadow-soft"
               >
@@ -162,9 +155,9 @@ export default function LobbyPage() {
               </button>
 
               <h2 className="text-2xl font-heading text-zen-purple-dark text-center mb-6">게임 모드 선택</h2>
-              
+
               <div className="space-y-4">
-                <button 
+                <button
                   onClick={() => handleStartGame("spell")}
                   className="w-full p-4 rounded-2xl border-4 border-zen-mint bg-zen-mint-light hover:bg-zen-mint transition-colors flex items-center gap-4 group"
                 >
@@ -177,7 +170,7 @@ export default function LobbyPage() {
                   </div>
                 </button>
 
-                <button 
+                <button
                   onClick={() => handleStartGame("match")}
                   className="w-full p-4 rounded-2xl border-4 border-zen-blue bg-zen-blue-light hover:bg-zen-blue transition-colors flex items-center gap-4 group"
                 >
@@ -194,29 +187,6 @@ export default function LobbyPage() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* 하단 FAB 및 메뉴 영역 (지도 뷰에서는 숨김 처리 고려 가능) */}
-      {!selectedBookId && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[90%] flex items-center justify-between pointer-events-none z-30">
-          <button 
-            onClick={() => router.push("/shop")}
-            className="pointer-events-auto h-12 w-12 bg-white rounded-bubble shadow-card border-2 border-zen-orange flex items-center justify-center text-zen-orange hover:scale-110 active:scale-95 transition-transform"
-            title="상점"
-          >
-            <Store className="w-6 h-6" />
-          </button>
-
-
-
-          <button 
-            onClick={() => router.push("/dex")}
-            className="pointer-events-auto h-12 w-12 bg-white rounded-bubble shadow-card border-2 border-zen-purple flex items-center justify-center text-zen-purple hover:scale-110 active:scale-95 transition-transform"
-            title="도감"
-          >
-            <Ghost className="w-6 h-6" />
-          </button>
-        </div>
-      )}
 
     </main>
   );

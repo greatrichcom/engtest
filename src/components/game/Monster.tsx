@@ -10,6 +10,7 @@ interface MonsterProps {
   hintEmoji?: string;
   isHit?: boolean;
   imageUrl?: string;
+  name?: string;
 }
 
 export function Monster({ currentHp, maxHp, hintEmoji, isHit, imageUrl }: MonsterProps) {
@@ -19,10 +20,7 @@ export function Monster({ currentHp, maxHp, hintEmoji, isHit, imageUrl }: Monste
   const monsterImage = imageUrl || "/images/monsters/media__1773510028776.jpg";
 
   return (
-    <div className="flex flex-col items-center gap-2 py-2 relative">
-      {/* 몬스터 HP & 피드백 정보 */}
-      {!isDead && <HpGauge currentHp={currentHp} maxHp={maxHp} />}
-
+    <div className="flex flex-col items-center gap-2 py-0 relative">
       {/* 몬스터 본체 */}
       <div 
         className={cn(
@@ -33,14 +31,14 @@ export function Monster({ currentHp, maxHp, hintEmoji, isHit, imageUrl }: Monste
         )}
       >
         {/* 몬스터 이미지 박스 */}
-        <div className="w-72 h-72 bg-white rounded-[4rem] shadow-pop border-4 border-zen-purple relative overflow-hidden">
+        <div className="w-96 h-96 bg-white rounded-[4.5rem] shadow-pop border-4 border-zen-purple relative overflow-hidden">
           <Image 
             src={monsterImage} 
             alt="Monster" 
             fill 
             className="object-cover"
             priority
-            sizes="(max-width: 768px) 100vw, 224px"
+            sizes="(max-width: 768px) 100vw, 384px"
           />
           
           {/* 말풍선 힌트 */}

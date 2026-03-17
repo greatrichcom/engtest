@@ -1,17 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  DndContext, 
-  DragEndEvent, 
-  MouseSensor, 
-  TouchSensor, 
-  useSensor, 
-  useSensors 
-} from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
-import { DraggableLetter } from "./DraggableLetter";
-import { DroppableSlot } from "./DroppableSlot";
+import { LetterButton } from "./LetterButton";
+import { LetterSlot } from "./LetterSlot";
 
 interface SpellPuzzleProps {
   english: string;
@@ -93,11 +85,6 @@ export function SpellPuzzle({ english, onCorrect, onWrong }: SpellPuzzleProps) {
     setShowAnswerOverlay(false);
   };
 
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 50, tolerance: 10 } })
-  );
-
   const handleSlotClick = (idx: number) => {
     const slot = slots[idx];
     
@@ -123,13 +110,19 @@ export function SpellPuzzle({ english, onCorrect, onWrong }: SpellPuzzleProps) {
   const handleLetterClick = (id: string, val: string) => {
     if (!val) return;
     
-    // 첫 번째 빈 칸 찾기
-    const emptySlotIdx = slots.findIndex(s => s.val === null);
-    if (emptySlotIdx === -1) return;
+    // 타겟 인덱스 결정 (선택된 칸이 있으면 그곳, 없으면 첫 빈칸)
+    let targetIdx = selectedSlotIdx !== null ? selectedSlotIdx : slots.findIndex(s => s.val === null);
+    
+    // 만약 선택된 칸이 이미 차 있다면 빈 칸을 새로 찾음
+    if (targetIdx !== -1 && slots[targetIdx].val !== null) {
+      targetIdx = slots.findIndex(s => s.val === null);
+    }
+
+    if (targetIdx === -1) return;
 
     const newSlots = [...slots];
-    newSlots[emptySlotIdx].val = val;
-    newSlots[emptySlotIdx].originId = id;
+    newSlots[targetIdx].val = val;
+    newSlots[targetIdx].originId = id;
     setSlots(newSlots);
 
     const newAvailables = availableLetters.map(l => l.id === id ? { ...l, val: "" } : l);
@@ -142,46 +135,8 @@ export function SpellPuzzle({ english, onCorrect, onWrong }: SpellPuzzleProps) {
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over) return;
-    
-    const slotId = over.id as string;
-    const letterId = active.id as string;
-    const droppedLetter = availableLetters.find(l => l.id === letterId);
-
-    if (!droppedLetter || !droppedLetter.val) return;
-
-    const targetSlotIdx = slots.findIndex(s => s.id === slotId);
-    if (targetSlotIdx === -1) return;
-    
-    let realTargetIdx = targetSlotIdx;
-    if (slots[targetSlotIdx].val !== null) {
-      const nextEmptyIdx = slots.findIndex(s => s.val === null);
-      if (nextEmptyIdx === -1) return;
-      realTargetIdx = nextEmptyIdx;
-    }
-
-    const newSlots = [...slots];
-    newSlots[realTargetIdx].val = droppedLetter.val;
-    newSlots[realTargetIdx].originId = letterId;
-    setSlots(newSlots);
-
-    const newAvailables = availableLetters.map(l => l.id === letterId ? { ...l, val: "" } : l);
-    setAvailableLetters(newAvailables);
-    setSelectedSlotIdx(null);
-
-    if (newSlots.every(s => s.val !== null)) {
-      const answer = newSlots.map(s => s.val).join("");
-      completeStep(answer === english);
-    }
-  };
-
   const handleHint = () => {
-    // 1. 힌트 줄 타겟 인덱스 결정 (선택된 칸이 있으면 그곳, 없으면 첫 빈칸)
     let targetIdx = selectedSlotIdx !== null ? selectedSlotIdx : slots.findIndex(s => s.val === null);
-    
-    // 만약 선택된 칸이 이미 차 있다면 빈 칸을 새로 찾음
     if (targetIdx !== -1 && slots[targetIdx].val !== null) {
       targetIdx = slots.findIndex(s => s.val === null);
     }
@@ -189,7 +144,6 @@ export function SpellPuzzle({ english, onCorrect, onWrong }: SpellPuzzleProps) {
     if (targetIdx === -1) return;
 
     const correctChar = english[targetIdx];
-    // 가용한 조각 중 정답 글자 찾기
     const letterToUseIdx = availableLetters.findIndex(l => l.val === correctChar);
     if (letterToUseIdx === -1) return;
 
@@ -208,48 +162,54 @@ export function SpellPuzzle({ english, onCorrect, onWrong }: SpellPuzzleProps) {
     }
   };
 
+  const isSmall = english.length > 8;
+
   return (
     <div className="w-full flex flex-col items-center gap-2 py-1 touch-none relative">
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        {/* Target Slots */}
-        <div className={`flex gap-1 flex-wrap items-center justify-center ${errorShake ? "animate-shake" : ""}`}>
-          {slots.map((slot, idx) => (
-            <DroppableSlot 
-              key={slot.id} 
-              id={slot.id} 
-              letter={slot.val} 
-              isSelected={selectedSlotIdx === idx}
-              onClick={() => handleSlotClick(idx)}
+      {/* Target Slots */}
+      <div className={cn(
+        "flex items-center justify-center flex-wrap gap-1.5",
+        errorShake ? "animate-shake" : ""
+      )}>
+        {slots.map((slot, idx) => (
+          <LetterSlot 
+            key={slot.id} 
+            id={slot.id} 
+            letter={slot.val} 
+            isSelected={selectedSlotIdx === idx}
+            onClick={() => handleSlotClick(idx)}
+            isSmall={isSmall}
+          />
+        ))}
+      </div>
+
+      {/* Available Letters & Hint Button */}
+      <div className="flex flex-col items-center gap-3 w-full">
+        <div className={cn(
+          "flex flex-wrap items-center justify-center relative min-h-[4rem] w-full px-1 gap-1.5",
+        )}>
+          {availableLetters.map((item) => (
+            <LetterButton 
+              key={item.id} 
+              id={item.id} 
+              letter={item.val} 
+              onClick={() => handleLetterClick(item.id, item.val)}
+              isSmall={isSmall}
             />
           ))}
         </div>
 
-        {/* Available Letters & Hint Button */}
-        <div className="flex flex-col items-center gap-6 w-full">
-          <div className="flex gap-1 flex-wrap items-center justify-center relative min-h-[3rem]">
-            {availableLetters.map((item) => (
-              <DraggableLetter 
-                key={item.id} 
-                id={item.id} 
-                letter={item.val} 
-                onClick={() => handleLetterClick(item.id, item.val)}
-              />
-            ))}
-          </div>
-
-          
-          <button
-            onClick={handleHint}
-            className="flex items-center gap-2 px-4 py-1.5 bg-white border-2 border-zen-orange rounded-full text-zen-orange font-bold shadow-soft hover:scale-105 active:scale-95 transition-all text-xs group"
-          >
-            <span className="group-hover:animate-bounce">💡</span>
-            <span>한 글자 힌트!</span>
-          </button>
-        </div>
-      </DndContext>
+        <button
+          onClick={handleHint}
+          className="flex items-center gap-2 px-6 py-2 bg-white border-2 border-zen-orange rounded-full text-zen-orange font-bold shadow-soft hover:scale-105 active:scale-95 transition-all text-sm group"
+        >
+          <span className="group-hover:animate-bounce">💡</span>
+          <span>한 글자 힌트!</span>
+        </button>
+      </div>
 
 
-      {/* 실시간 정답 확인용 오버레이 (정해진 시간에 사라지지 않고 터치 시 다음으로) */}
+      {/* 실시간 정답 확인용 오버레이 */}
       {showAnswerOverlay && (
         <div 
           onClick={handleNextAction}
