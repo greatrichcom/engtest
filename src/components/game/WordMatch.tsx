@@ -148,7 +148,7 @@ export function WordMatch({ words, onComplete, onWrong }: WordMatchProps) {
       ref={containerRef} 
       onPointerMove={handlePointerMove}
       onClick={handleBgClick}
-      className="relative w-full flex justify-between gap-4 py-6 select-none min-h-[350px] touch-none"
+      className="relative w-full flex justify-center gap-10 py-2 select-none min-h-[250px] touch-none"
     >
       {/* 선을 그릴 SVG 레이어 */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible">
@@ -184,7 +184,7 @@ export function WordMatch({ words, onComplete, onWrong }: WordMatchProps) {
       </svg>
 
       {/* 영단어 (왼쪽) */}
-      <div className="flex flex-col gap-3 z-10">
+      <div className="flex flex-col gap-2 z-10 w-[120px]">
         {leftItems.map((item) => {
           const isMatched = !!matches[item.id];
           const isSelected = selectedLeft === item.id;
@@ -197,21 +197,21 @@ export function WordMatch({ words, onComplete, onWrong }: WordMatchProps) {
               disabled={isMatched}
               onClick={() => setSelectedLeft(item.id)}
               className={cn(
-                "w-36 py-4 rounded-2xl border-4 font-heading text-lg transition-all shadow-card active:scale-95",
+                "w-full py-2 rounded-xl border-2 font-heading text-sm transition-all shadow-soft active:scale-95",
                 isMatched ? "bg-zen-mint-light border-zen-mint text-zen-mint-dark shadow-none scale-[0.98]" :
-                isSelected ? "bg-zen-purple border-zen-purple-dark text-white scale-105 ring-4 ring-zen-purple/30 z-20" :
+                isSelected ? "bg-zen-purple border-zen-purple-dark text-white scale-105 ring-2 ring-zen-purple/30 z-20" :
                 isWrong ? "bg-red-500 border-red-700 text-white animate-shake" :
                 "bg-white border-zen-lavender-dark text-zen-purple-dark hover:border-zen-purple"
               )}
             >
-              {item.text}
+              <span className="truncate block px-1">{item.text}</span>
             </button>
           );
         })}
       </div>
 
       {/* 한글뜻 (오른쪽) */}
-      <div className="flex flex-col gap-3 z-10">
+      <div className="flex flex-col gap-2 z-10 w-[120px]">
         {rightItems.map((item) => {
           const isMatched = Object.values(matches).includes(item.id);
           const isSelected = selectedRight === item.id;
@@ -223,17 +223,19 @@ export function WordMatch({ words, onComplete, onWrong }: WordMatchProps) {
               disabled={isMatched}
               onClick={() => setSelectedRight(item.id)}
               className={cn(
-                "w-36 py-4 rounded-2xl border-4 font-heading text-lg transition-all shadow-card active:scale-95",
+                "w-full py-2 rounded-xl border-2 font-heading text-sm transition-all shadow-soft active:scale-95",
                 isMatched ? "bg-zen-mint-light border-zen-mint text-zen-mint-dark shadow-none scale-[0.98]" :
-                isSelected ? "bg-zen-purple border-zen-purple-dark text-white scale-105 ring-4 ring-zen-purple/30 z-20" :
+                isSelected ? "bg-zen-purple border-zen-purple-dark text-white scale-105 ring-2 ring-zen-purple/30 z-20" :
                 "bg-white border-zen-lavender-dark text-zen-purple-dark hover:border-zen-purple"
               )}
             >
-              {item.text}
+              <span className="truncate block px-1">{item.text}</span>
             </button>
           );
         })}
       </div>
+
+
     </div>
   );
 }

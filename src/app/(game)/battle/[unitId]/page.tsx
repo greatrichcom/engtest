@@ -56,10 +56,8 @@ export default function BattlePage() {
     }
 
     if (!isRevenge && dbWords && dbWords.length > 0) {
-      // 5개 테스트 제한 (풀 버전은 slice 제거)
-      const testWords = dbWords.slice(0, 5);
-      // 로비에서 게임 모드를 선택하지 않았을 경우 기본 spell
-      initGame(unitIdPath, testWords, gameType || "spell");
+      // 모든 단어 사용 (테스트 제한 제거)
+      initGame(unitIdPath, dbWords, gameType || "spell");
     }
   }, [dbWords, unitData, unitIdPath, initGame, isRevenge, gameType, selectedMonster]);
 
@@ -135,11 +133,11 @@ export default function BattlePage() {
       </section>
 
       {/* 하단 인터랙티브 사용자 액션 영역 */}
-      <div className="flex flex-col gap-4">
-        <section className="bg-white mx-4 rounded-card border-4 border-zen-mint p-4 shadow-card z-10 min-h-[350px]">
+      <div className="flex flex-col gap-1">
+        <section className="bg-white mx-4 rounded-3xl border-4 border-zen-mint p-2 shadow-card z-10 min-h-[220px] flex flex-col justify-center">
           {!isGameFinished && gameType === "spell" && (
             <>
-              <div className="text-center font-heading text-xl text-text-primary mb-2">
+              <div className="text-center font-heading text-base text-text-primary mb-0.5">
                 {currentWord?.korean}
               </div>
               <SpellPuzzle 
@@ -152,7 +150,7 @@ export default function BattlePage() {
 
           {!isGameFinished && gameType === "match" && (
             <>
-              <div className="text-center font-heading text-lg text-zen-purple-dark mb-1">
+              <div className="text-center font-heading text-base text-zen-purple-dark mb-0.5">
                 뜻 매칭 (Connect Words)
               </div>
               <WordMatch 
@@ -164,17 +162,17 @@ export default function BattlePage() {
           )}
 
           {isGameFinished && (
-            <div className="text-center text-correct font-game text-2xl animate-pop-in my-8">
+            <div className="text-center text-correct font-game text-lg animate-pop-in my-2">
               {isMonsterDead ? "Victory! 보물상자 방으로 이동합니다...🏃‍♂️💨" : "Finish! 결과를 확인하러 갑니다...🏃‍♂️💨"}
             </div>
           )}
         </section>
 
         {/* 하단 로비 버튼 */}
-        <div className="px-4 pb-2">
+        <div className="px-4 pb-0.5">
           <button 
             onClick={() => router.push("/lobby")}
-            className="w-full py-3 bg-white border-2 border-zen-lavender-dark rounded-full text-zen-purple-dark font-bold shadow-soft hover:bg-zen-lavender-light active:scale-95 transition-all flex items-center justify-center gap-2"
+            className="w-full py-2 bg-white border-2 border-zen-lavender-dark rounded-full text-zen-purple-dark font-bold shadow-soft hover:bg-zen-lavender-light active:scale-95 transition-all flex items-center justify-center gap-2 text-xs"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
             로비로 돌아가기

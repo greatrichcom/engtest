@@ -120,6 +120,28 @@ export function SpellPuzzle({ english, onCorrect, onWrong }: SpellPuzzleProps) {
     }
   };
 
+  const handleLetterClick = (id: string, val: string) => {
+    if (!val) return;
+    
+    // 첫 번째 빈 칸 찾기
+    const emptySlotIdx = slots.findIndex(s => s.val === null);
+    if (emptySlotIdx === -1) return;
+
+    const newSlots = [...slots];
+    newSlots[emptySlotIdx].val = val;
+    newSlots[emptySlotIdx].originId = id;
+    setSlots(newSlots);
+
+    const newAvailables = availableLetters.map(l => l.id === id ? { ...l, val: "" } : l);
+    setAvailableLetters(newAvailables);
+    setSelectedSlotIdx(null);
+
+    if (newSlots.every(s => s.val !== null)) {
+      const answer = newSlots.map(s => s.val).join("");
+      completeStep(answer === english);
+    }
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -187,10 +209,10 @@ export function SpellPuzzle({ english, onCorrect, onWrong }: SpellPuzzleProps) {
   };
 
   return (
-    <div className="w-full flex flex-col items-center gap-10 py-4 touch-none relative">
+    <div className="w-full flex flex-col items-center gap-2 py-1 touch-none relative">
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         {/* Target Slots */}
-        <div className={`flex gap-2 flex-wrap items-center justify-center ${errorShake ? "animate-shake" : ""}`}>
+        <div className={`flex gap-1 flex-wrap items-center justify-center ${errorShake ? "animate-shake" : ""}`}>
           {slots.map((slot, idx) => (
             <DroppableSlot 
               key={slot.id} 
@@ -204,21 +226,28 @@ export function SpellPuzzle({ english, onCorrect, onWrong }: SpellPuzzleProps) {
 
         {/* Available Letters & Hint Button */}
         <div className="flex flex-col items-center gap-6 w-full">
-          <div className="flex gap-3 flex-wrap items-center justify-center relative min-h-[4rem]">
+          <div className="flex gap-1 flex-wrap items-center justify-center relative min-h-[3rem]">
             {availableLetters.map((item) => (
-              <DraggableLetter key={item.id} id={item.id} letter={item.val} />
+              <DraggableLetter 
+                key={item.id} 
+                id={item.id} 
+                letter={item.val} 
+                onClick={() => handleLetterClick(item.id, item.val)}
+              />
             ))}
           </div>
+
           
           <button
             onClick={handleHint}
-            className="flex items-center gap-2 px-6 py-2 bg-white border-2 border-zen-orange rounded-full text-zen-orange font-bold shadow-card hover:scale-105 active:scale-95 transition-all text-sm group"
+            className="flex items-center gap-2 px-4 py-1.5 bg-white border-2 border-zen-orange rounded-full text-zen-orange font-bold shadow-soft hover:scale-105 active:scale-95 transition-all text-xs group"
           >
             <span className="group-hover:animate-bounce">💡</span>
             <span>한 글자 힌트!</span>
           </button>
         </div>
       </DndContext>
+
 
       {/* 실시간 정답 확인용 오버레이 (정해진 시간에 사라지지 않고 터치 시 다음으로) */}
       {showAnswerOverlay && (

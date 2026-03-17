@@ -4,9 +4,10 @@ import { CSS } from "@dnd-kit/utilities";
 interface Props {
   id: string;
   letter: string;
+  onClick?: () => void;
 }
 
-export function DraggableLetter({ id, letter }: Props) {
+export function DraggableLetter({ id, letter, onClick }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id,
   });
@@ -28,11 +29,14 @@ export function DraggableLetter({ id, letter }: Props) {
       style={style}
       {...listeners}
       {...attributes}
-      className={`relative touch-none flex w-14 h-14 items-center justify-center rounded-bubble border-2 bg-white text-2xl font-bold font-game uppercase shadow-pop transition-transform ${
-        isDragging ? "z-50 scale-110 opacity-80 shadow-soft" : "border-zen-mint text-text-primary hover:scale-105"
+      onClick={onClick}
+      className={`relative cursor-pointer touch-none flex w-10 h-10 items-center justify-center rounded-bubble border-2 bg-white text-xl font-bold font-game uppercase shadow-pop transition-transform ${
+        isDragging ? "z-50 scale-110 opacity-80 shadow-soft" : "border-zen-mint text-text-primary hover:scale-105 active:scale-95"
       }`}
     >
       {letter}
     </div>
   );
 }
+
+

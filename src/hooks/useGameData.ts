@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useUserStore } from "@/stores/useUserStore";
 import { useUIStore } from "@/stores/useUIStore";
+import { pickRandomUnlockedMonster, pickMonsterByRarity, MONSTER_REGISTRY, type UnlockSource, type MonsterEntry } from "@/lib/monsterRegistry";
 
 export interface BookWithProgress {
   id: string;
@@ -61,11 +62,10 @@ export function useBooks() {
       }
 
       // 실제 Supabase에서 데이터 패칭
-      // Books 테이블과 그 하위 Units, 그리고 User Progress를 조인
       const { data, error } = await supabase
         .from("books")
         .select(`
-          id, title, description, is_preset,
+          id, title, description, is_preset, sort_order,
           units (
             id,
             sort_order,
@@ -76,12 +76,10 @@ export function useBooks() {
 
       if (error) throw error;
       
-      // 실제 데이터만 반환 (Mock Fallback 제거)
       if (!data) return [];
 
       return data.map((book: any) => {
         const units = (book.units as any[]) || [];
-        // sort_order 기준으로 정렬하여 첫 번째 유닛 ID 추출
         const sortedUnits = [...units].sort((a, b) => a.sort_order - b.sort_order);
         const firstUnitId = sortedUnits[0]?.id;
         
@@ -95,13 +93,57 @@ export function useBooks() {
           id: String(book.id),
           title: String(book.title || ""),
           description: String(book.description || ""),
-          isUnlocked: true, 
+          isUnlocked: book.is_preset || true, // 임시로 모두 해제
           totalUnits,
           clearedUnits,
           firstUnitId
         };
+      }) as BookWithProgress[];
+    },
+  });
+}
+
+export function useBookUnits(bookId: string) {
+  const supabase = createClient();
+  const { user } = useUserStore();
+
+  return useQuery({
+    queryKey: ["bookUnits", bookId, user?.id],
+    queryFn: async () => {
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("dummy")) {
+        return [
+          { id: "u1", title: "Unit 1", status: "cleared", stars: 3 },
+          { id: "u2", title: "Unit 2", status: "unlocked", stars: 0 },
+          { id: "u3", title: "Unit 3", status: "locked", stars: 0 },
+        ] as any[];
+      }
+
+      const { data, error } = await supabase
+        .from("units")
+        .select(`
+          id, title, sort_order,
+          user_progress ( status, stars )
+        `)
+        .eq("book_id", bookId)
+        .order("sort_order", { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map((u, index) => {
+        const progress = (u.user_progress as any[])?.[0];
+        let status = progress?.status || "unlocked";
+        
+        // 유저가 모든 유닛을 자유롭게 선택할 수 있도록 기본 상태를 'unlocked'로 설정합니다.
+
+        return {
+          id: u.id,
+          title: u.title,
+          status: status as "locked" | "unlocked" | "cleared",
+          stars: progress?.stars || 0
+        };
       });
     },
+    enabled: !!bookId,
   });
 }
 
@@ -163,14 +205,7 @@ const REWARD_MAP: Record<number, { gold: number; gems: number }> = {
   3: { gold: 10, gems: 5 },
 };
 
-const MONSTER_NAMES: Record<string, string> = {
-  slime: "초록 슬라임",
-  dragon: "화염 드래곤",
-  ghost: "장난꾸러기 유령",
-  robot: "단어 로봇",
-  default: "평범한 슬라임"
-};
-
+// 레거시 몬스터 매핑 (하위 호환용, 배틀 이미지 선택에 사용)
 const MONSTER_IMAGES: Record<string, string> = {
   slime: "/images/monsters/media__1773510028776.jpg",
   default: "/images/monsters/media__1773510028789.jpg",
@@ -235,26 +270,47 @@ export function useSaveProgress() {
         gold_earned: earnedGold
       });
 
-      // 4. 몬스터 획득 처리 (정답률 80% 이상이거나 별점 2개 이상일 때 획득)
+      // 4. 몬스터 도감 해금 처리 (여러 조건 분기)
+      // 기존 해금 몬스터 ID 목록 조회
+      const { data: existingDex } = await supabase
+        .from("monster_dex")
+        .select("monster_id")
+        .eq("user_id", user.id);
+      
+      const unlockedIds = (existingDex || []).map((d: any) => d.monster_id).filter((id: any) => id != null);
+      const newUnlocks: { monster: MonsterEntry; source: UnlockSource }[] = [];
+      
+      // 별 2개 이상: 1마리 해금
       if (stars >= 2) {
-        // 실제 unit의 monster_type 조회
-        const { data: unitData } = await supabase
-          .from("units")
-          .select("monster_type")
-          .eq("id", unitId)
-          .single();
-        
-        const mType = unitData?.monster_type || "slime";
-        const mName = MONSTER_NAMES[mType] || "미확인 몬스터";
-
+        const m = pickRandomUnlockedMonster(unlockedIds);
+        if (m) {
+          newUnlocks.push({ monster: m, source: "battle_2star" });
+          unlockedIds.push(m.id);
+        }
+      }
+      // 별 3개: 추가 1마리 해금
+      if (stars >= 3) {
+        const m = pickRandomUnlockedMonster(unlockedIds);
+        if (m) {
+          newUnlocks.push({ monster: m, source: "battle_3star" });
+          unlockedIds.push(m.id);
+        }
+      }
+      
+      // DB에 새 해금 몬스터 저장
+      for (const unlock of newUnlocks) {
         await supabase.from("monster_dex").upsert({
           user_id: user.id,
-          monster_type: mType,
-          name: mName,
+          monster_id: unlock.monster.id,
+          monster_type: `monster_${unlock.monster.id}`,
+          name: unlock.monster.name,
+          image_url: unlock.monster.image,
+          rarity: unlock.monster.rarity,
+          unlock_source: unlock.source,
           captured_at: new Date().toISOString()
-        }, { onConflict: 'user_id,monster_type' });
+        }, { onConflict: 'user_id,monster_id' });
         
-        console.log(`Monster Captured: ${mName} (${mType})`);
+        console.log(`Monster Unlocked: ${unlock.monster.name} (from ${unlock.source})`);
       }
 
       // 4. 진행률 업데이트
@@ -310,7 +366,8 @@ export function useSaveProgress() {
         leveledUp, 
         oldLevel: user.level || 1, 
         newLevel, 
-        rewards: { gold: earnedGold, gems: earnedGems } 
+        rewards: { gold: earnedGold, gems: earnedGems },
+        newUnlocks
       };
     },
     onSuccess: (data) => {
@@ -324,6 +381,15 @@ export function useSaveProgress() {
           newLevel: data.newLevel,
           rewards: data.rewards
         });
+      }
+      
+      // 새 몬스터 해금 모달 (첫 번째 해금 몬스터만 표시, 나머지는 도감에서 확인)
+      if (data?.newUnlocks && data.newUnlocks.length > 0) {
+        const firstUnlock = data.newUnlocks[0];
+        // 레벨업 모달 후에 보여주기 위해 약간 딜레이
+        setTimeout(() => {
+          useUIStore.getState().openMonsterUnlockModal(firstUnlock.monster, firstUnlock.source);
+        }, data.leveledUp ? 2000 : 500);
       }
     }
   });
@@ -386,21 +452,217 @@ export function useDex() {
   return useQuery({
     queryKey: ["dex", user?.id],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user) return [] as number[];
       
       if (process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("dummy")) {
-        return ["slime", "robot"];
+        // Mock: 처음 5마리는 해금 상태
+        return [0, 1, 2, 3, 4];
       }
 
       const { data, error } = await supabase
         .from("monster_dex")
-        .select("monster_type")
+        .select("monster_id")
         .eq("user_id", user.id);
 
       if (error) throw error;
-      return data?.map(d => d.monster_type) || [];
+      return (data?.map(d => d.monster_id).filter((id: any) => id != null) || []) as number[];
     },
     enabled: !!user,
+  });
+}
+
+/** 범용 몬스터 해금 뮤테이션 */
+export function useUnlockMonster() {
+  const supabase = createClient();
+  const { user } = useUserStore();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ monster, source }: { monster: MonsterEntry; source: UnlockSource }) => {
+      if (!user) throw new Error("User not authenticated");
+
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("dummy")) {
+        console.log(`[Mock] Monster Unlocked: ${monster.name} (${source})`);
+        return monster;
+      }
+
+      await supabase.from("monster_dex").upsert({
+        user_id: user.id,
+        monster_id: monster.id,
+        monster_type: `monster_${monster.id}`,
+        name: monster.name,
+        image_url: monster.image,
+        rarity: monster.rarity,
+        unlock_source: source,
+        captured_at: new Date().toISOString()
+      }, { onConflict: 'user_id,monster_id' });
+
+      return monster;
+    },
+    onSuccess: (monster, { source }) => {
+      queryClient.invalidateQueries({ queryKey: ["dex"] });
+      useUIStore.getState().openMonsterUnlockModal(monster, source);
+    },
+  });
+}
+
+/** 출석 체크 훅 */
+export function useCheckAttendance() {
+  const supabase = createClient();
+  const { user } = useUserStore();
+  const queryClient = useQueryClient();
+  const { mutate: unlockMonster } = useUnlockMonster();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("User not authenticated");
+      
+      const today = new Date().toISOString().split('T')[0];
+
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("dummy")) {
+        console.log("[Mock] Attendance checked");
+        return { streak: 1, isNew: true, milestone: "1d" as const };
+      }
+
+      // 오늘 이미 출석했는지 확인
+      const { data: existing } = await supabase
+        .from("attendance")
+        .select("id, streak")
+        .eq("user_id", user.id)
+        .eq("check_date", today)
+        .single();
+
+      if (existing) {
+        return { streak: existing.streak, isNew: false, milestone: null };
+      }
+
+      // 어제 출석 기록으로 연속 여부 확인
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+      const { data: yesterdayRecord } = await supabase
+        .from("attendance")
+        .select("streak")
+        .eq("user_id", user.id)
+        .eq("check_date", yesterdayStr)
+        .single();
+
+      const newStreak = (yesterdayRecord?.streak || 0) + 1;
+
+      // 출석 기록 삽입
+      await supabase.from("attendance").insert({
+        user_id: user.id,
+        check_date: today,
+        streak: newStreak,
+      });
+
+      // 마일스톤 판단
+      let milestone: "1d" | "3d" | "7d" | null = "1d";
+      if (newStreak >= 7 && newStreak % 7 === 0) milestone = "7d";
+      else if (newStreak >= 3 && newStreak % 3 === 0) milestone = "3d";
+
+      return { streak: newStreak, isNew: true, milestone };
+    },
+    onSuccess: async (data) => {
+      if (!data.isNew) return;
+
+      queryClient.invalidateQueries({ queryKey: ["dex"] });
+
+      // 출석 모달 표시
+      useUIStore.getState().openAttendanceModal(data.streak, data.milestone);
+
+      // 마일스톤에 따라 몬스터 해금
+      if (data.milestone) {
+        const { data: dexData } = await queryClient.fetchQuery({
+          queryKey: ["dex"],
+          queryFn: async () => [] as number[]
+        }).catch(() => ({ data: [] as number[] })) as any;
+
+        const unlockedIds = Array.isArray(dexData) ? dexData : [];
+        const source: UnlockSource = `attendance_${data.milestone}` as UnlockSource;
+        const monster = pickRandomUnlockedMonster(unlockedIds);
+
+        if (monster) {
+          // 출석 모달이 닫힌 후에 해금 모달 표시
+          setTimeout(() => {
+            unlockMonster({ monster, source });
+          }, 2000);
+        }
+      }
+    }
+  });
+}
+
+/** 상점에서 몬스터 구매 */
+export function usePurchaseMonster() {
+  const supabase = createClient();
+  const { user, setUser } = useUserStore();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ currencyType, price }: { currencyType: "gold" | "gems"; price: number }) => {
+      if (!user) throw new Error("User not authenticated");
+
+      // 재화 확인
+      const balance = currencyType === "gold" ? user.gold : user.gems;
+      if ((balance || 0) < price) throw new Error("재화가 부족합니다!");
+
+      // 해금된 몬스터 ID 조회
+      let unlockedIds: number[] = [];
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("dummy")) {
+        const { data: dex } = await supabase
+          .from("monster_dex")
+          .select("monster_id")
+          .eq("user_id", user.id);
+        unlockedIds = (dex || []).map((d: any) => d.monster_id).filter((id: any) => id != null);
+      }
+
+      // 보석이면 레어 이상, 골드면 커먼 이상
+      const minRarity = currencyType === "gems" ? "rare" : "common";
+      const monster = pickMonsterByRarity(unlockedIds, minRarity);
+      if (!monster) throw new Error("모든 몬스터를 이미 발견했습니다!");
+
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("dummy")) {
+        console.log(`[Mock] Monster purchased: ${monster.name}`);
+        return monster;
+      }
+
+      // 재화 차감
+      const updateData = currencyType === "gold" 
+        ? { gold: (user.gold || 0) - price }
+        : { gems: (user.gems || 0) - price };
+
+      const { data: updatedProfile } = await supabase
+        .from("profiles")
+        .update(updateData)
+        .eq("id", user.id)
+        .select()
+        .single();
+
+      if (updatedProfile) setUser(updatedProfile);
+
+      // 도감에 추가
+      const source: UnlockSource = currencyType === "gold" ? "shop_gold" : "shop_gems";
+      await supabase.from("monster_dex").upsert({
+        user_id: user.id,
+        monster_id: monster.id,
+        monster_type: `monster_${monster.id}`,
+        name: monster.name,
+        image_url: monster.image,
+        rarity: monster.rarity,
+        unlock_source: source,
+        captured_at: new Date().toISOString()
+      }, { onConflict: 'user_id,monster_id' });
+
+      return monster;
+    },
+    onSuccess: (monster, { currencyType }) => {
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({ queryKey: ["dex"] });
+      const source = currencyType === "gold" ? "shop_gold" : "shop_gems";
+      useUIStore.getState().openMonsterUnlockModal(monster, source);
+    }
   });
 }
 
